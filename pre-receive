@@ -1,0 +1,100 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+# Enforce angular commit messages for all commits
+# See pre-receive.asciidoc
+#
+# Modified version of https://stackoverflow.com/a/2531183
+# benjamin.schmid@exxcellent.de , 02/2016
+
+#
+# CONFIGURATION OPTIONS
+#
+#  - $allowGitRevert:
+#    If `1`, this allow default generated Git commit messages revert:
+#         Revert "<original message>"
+#  - $allowGitMerge:
+#    If `1`, this allow default generated Git commit messages for merge commits:
+#         Merge branch '<sourcebranch>' into <target>
+#
+my $allowGitRevert = 1;
+my $allowGitMerge  = 1;
+#
+#
+
+my $errors = 0;
+while (<>) {
+  chomp;
+  next unless my($old,$new) =
+    m[ ^ ([0-9a-f]+) \s+   # old SHA-1
+         ([0-9a-f]+) \s+   # new SHA-1
+         refs/heads/.*     # ref
+       \s* $ ]x;
+
+  my $range = $old . '..' . $new;
+  if ($old =~ /^0{40}/) { $range = $new; } # new branch: SHA = 000..c3a
+  if ($new =~ /^0{40}/) { exit 0; } # deleting branch: SHA = c3a..000
+
+  chomp(my @commits = `git rev-list $range`);
+  if ($?) {
+    warn "git rev-list $range failed for $0\n";
+    ++$errors, next;
+  }
+
+  foreach my $sha1 (@commits) {
+    my $msg = `git cat-file commit $sha1`;
+    if ($?) {
+      warn "git cat-file commit $sha1 failed for $0";
+      ++$errors, next;
+    }
+
+    $msg =~ s/\A.+? ^$ \s+//smx;
+
+    if ($msg =~ /\/\/\s*\@formatter:off/) {
+        print STDERR "INFO: Found stop marker '// \@formatter:off'. " . "Ignoring message format of all commits previous to $sha1\n";
+        last;
+    }
+
+    next if ($allowGitRevert && $msg =~ /^Revert ".*"/);
+
+    next if ($allowGitMerge && ($msg =~ /^Merge .*/));
+
+    unless ($msg =~ /^((revert)|((feat|fix|docs|style|refactor|refact|perf|test|chore)\(.+\))): .{7,}/) {
+      print STDERR "Invalid commit message format for $sha1: " . ( split /\n/, $msg )[0] . "\n";
+      ++$errors, next;
+    }
+  }
+}
+
+unless ($errors == 0) {
+    print STDERR "\n" . "=" x80;
+    warn "\nERROR: $errors commit message(s) do not following the commit styleguide.\n";
+    print STDERR "       Please check the following guide or use '// \@formatter:off':\n";
+    print STDERR "       https://github.com/angular/angular.js/blob/v1.7.0/DEVELOPERS.md#commits\n";
+    print STDERR "=" x80 . "\n";
+    print STDERR "\n";
+    print STDERR "SYNTAX:\n";
+    print STDERR "    <type>(<scope>): <subject>\n";
+    print STDERR "\n";
+    print STDERR "    <descriptive body>\n";
+    print STDERR "\n";
+    print STDERR "TYPE:\n";
+    print STDERR "     feat: A new feature\n";
+    print STDERR "     fix:  A bug fix\n";
+    print STDERR "     docs: Documentation changes\n";
+    print STDERR "    style: Changes that do not affect the meaning of the code\n";
+    print STDERR " refactor: A code change that neither fixes a bug nor adds a feature\n";
+    print STDERR "     perf: A code change that improves performance\n";
+    print STDERR "     test: Adding tests\n";
+    print STDERR "    chore: Changes to the build process or auxiliary tools and libraries\n";
+    print STDERR "\n";
+    print STDERR "EXAMPLE:\n";
+    print STDERR "    perf(ngAnimate): avoid jqLite/jQuery for upward DOM traversal\n";
+    print STDERR "\n";
+    print STDERR "    The 'parentNode' property is well supported between all browsers. Since\n";
+    print STDERR "    no other functionality was required here, we can use the DOM API directly.\n";
+
+    exit 1;
+}
+exit 0;

@@ -1,0 +1,6 @@
+= Enforce Angular commit message style guide (client- & server-side)
+
+This repository contains git hook scripts to enforce the Angular commit message style guide on the client-side (committer) as well as the server-side.
+
+include::pre-receive.asciidoc[leveloffset=+1]
+include::commit-msg.asciidoc[leveloffset=+1]

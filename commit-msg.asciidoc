@@ -1,0 +1,54 @@
+= `commit-msg` – enforce Angular commit message style guide (client-side)
+
+`commit-msg` is a git hook script to enforce the Angular commit message style guide for all client-side commits.
+
+It will work on both Linux/Unix as well as on Windows platforms.
+
+== Installation
+`commit-msg` implements a git client-side hook. Because hooks aren’t transferred with a clone of a project, you must distribute these
+scripts some other way and then have your users copy them to their `.git/hooks` directory and make them executable  You can distribute
+these hooks within the project or in a separate project, but Git won’t set them up automatically.
+
+.Example installation for the repository root directory
+
+   cp commit-msg .git/hooks/
+   chmod +x .git/hooks/commit-msg
+
+== Note
+Unless the server-side counterpart, this script only enforces commits.
+Messages i.e. generated during a `git revert` or a  `git merge` are not passed to `commit-msg` and hence are not enforced.
+
+== Usage
+
+If a commit does not comply to the link:https://github.com/angular/angular.js/blob/v1.5.0/CONTRIBUTING.md#commit[Angular commit style
+guide] it will fail and abort the commit with the following message.
+
+**Additionally to the cited style guide it also checks for at least 7 characters after ': '**.
+
+----
+~/p/dashboard.git>  git commit -m "feat(): My first commit"
+ERROR: Commit message does not following the commit styleguide.
+       Please check the following guide:
+           https://github.com/angular/angular.js/blob/v1.5.0/CONTRIBUTING.md#commit
+
+SYNTAX:
+    <type>(<scope>): <subject>
+
+    <descriptive body>
+
+TYPE:
+    feat: A new feature
+    fix: A bug fix
+    docs: Documentation only changes
+    style: Changes that do not affect the meaning of the code
+    refactor: A code change that neither fixes a bug nor adds a feature
+    perf: A code change that improves performance
+    test: Adding missing tests
+    chore: Changes to the build process or auxiliary tools and libraries
+
+EXAMPLE:
+    perf(ngAnimate): avoid jqLite/jQuery for upward DOM traversal
+
+    The 'parentNode' property is well supported between all browsers. Since
+    no other functionality was required here, we can use the DOM API directly.
+----
