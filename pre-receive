@@ -1,6 +1,8 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
+use File::stat;
+use Cwd 'realpath';
 
 # Enforce angular commit messages for all commits
 # See pre-receive.asciidoc
@@ -22,6 +24,10 @@ my $allowGitRevert = 1;
 my $allowGitMerge  = 1;
 #
 #
+my $file = realpath($0);
+my $stat = stat($file);
+my $mtime = $stat->mtime;
+
 
 my $errors = 0;
 while (<>) {
@@ -43,6 +49,11 @@ while (<>) {
   }
 
   foreach my $sha1 (@commits) {
+    my $commitDate = `git show $sha1 -s --pretty=format:%ct`;
+    if ($commitDate < $mtime) {
+       next;
+    }
+    
     my $msg = `git cat-file commit $sha1`;
     if ($?) {
       warn "git cat-file commit $sha1 failed for $0";
