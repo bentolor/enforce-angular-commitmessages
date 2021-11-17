@@ -8,25 +8,28 @@ use Cwd 'realpath';
 # See pre-receive.asciidoc
 #
 # Modified version of https://stackoverflow.com/a/2531183
-# benjamin.schmid@exxcellent.de , 02/2016
+# bentolor@gmail.com, 11/2021
 
 #
 # CONFIGURATION OPTIONS
 #
 #  - $allowGitRevert:
-#    If `1`, this allow default generated Git commit messages revert:
+#    If `1` (default), this allow default generated Git commit messages revert:
 #         Revert "<original message>"
 #  - $allowGitMerge:
-#    If `1`, this allow default generated Git commit messages for merge commits:
+#    If `1` (default), this allow default generated Git commit messages for merge commits:
 #         Merge branch '<sourcebranch>' into <target>
+#
+#   - $skipCommitPriorHookDeployment:
+#    If `1` (default), this hook will IGNORE commits which are older than the deployment
+#    date of this hook (mtime timestamp of `pre-receive`)
 #
 my $allowGitRevert = 1;
 my $allowGitMerge  = 1;
+my $skipCommitPriorHookDeployment = 1;
 #
 #
-my $file = realpath($0);
-my $stat = stat($file);
-my $mtime = $stat->mtime;
+my $mtime = stat(realpath($0))->mtime;
 
 
 my $errors = 0;
@@ -49,9 +52,12 @@ while (<>) {
   }
 
   foreach my $sha1 (@commits) {
-    my $commitDate = `git show $sha1 -s --pretty=format:%ct`;
-    if ($commitDate < $mtime) {
-       next;
+    if ($skipCommitPriorHookDeployment) {
+      my $commitDate = `git show $sha1 -s --pretty=format:%ct`;
+      if ($commitDate < $mtime) {
+        print "INFO: Ignoring message format of commits older than $mtime\n";
+        last;
+      }
     }
     
     my $msg = `git cat-file commit $sha1`;
@@ -63,7 +69,7 @@ while (<>) {
     $msg =~ s/\A.+? ^$ \s+//smx;
 
     if ($msg =~ /\/\/\s*\@formatter:off/) {
-        print STDERR "INFO: Found stop marker '// \@formatter:off'. " . "Ignoring message format of all commits previous to $sha1\n";
+        print "INFO: Found stop marker '// \@formatter:off'. " . "Ignoring message format of all commits previous to $sha1\n";
         last;
     }
 
